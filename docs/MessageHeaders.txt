@@ -1,0 +1,49 @@
+Swarm Server Header:
+Mode: 1, // Add or remove peer from client or swarm server
+address: 4, // The IPv4 address of the peer
+port: 2 // the port of the peer
+Total Header Length: 7
+
+Mode Types:
+Add -> Add this peer to your records
+Remove -> Remove this peer from your records
+
+
+Chunk Size: 32Mb
+
+Peer Message Header:
+message_type: 1, // The type of message this is
+
+requested_filename: 255, // If this is a File Request, the filename we are
+                         // requesting
+
+num_chunks: 4, // The number of chunks that makes up this file (For File
+               // Response)
+
+chunk_request_begin_idx: 4, // For Chunk request / response, the begin index of
+                            // the chunks we are requesting from the client
+
+chunk_request_end_idx: 4, // For Chunk request / response, the end index of the
+                          // chunks we are requesting from the other client.
+current_chunk_idx: 4 // For chunk response. (the current chunk we are sending)
+Total Header Length: 272 Bytes
+
+Message Types:
+File Request -> Request a File from another client.
+    Populated header fields:
+        - message_type: 0
+        - requested_filename
+File Response -> Respond to a file request whether we have it.
+    Populated header fields:
+        - message_type: 1
+        - num_chunks (0 if they don't have it)
+Chunk Request -> We found out that a client has a file we want, request a set of
+    chunks from that client.
+    Populated header fields:
+        - requested_filename
+        - chunk_request_begin_idx
+        - chunk_request_end_idx
+Chunk Response -> Respond to the client with the chunks that they requested.
+    Populated header fields:
+        - chunk_idx
+        - contains 32Mb payload after header
