@@ -1,0 +1,1 @@
+https://stackoverflow.com/questions/3060950/how-to-get-ip-address-from-sock-structure-in-c
