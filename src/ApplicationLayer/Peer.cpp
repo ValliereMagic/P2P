@@ -78,7 +78,7 @@ bool Peer::build_message_header(PeerMessage &out_message,
 
 // Returns the pieces of the message extracted from the header, as well as
 // writes the chunk to the chunks folder passed if this is a CHUNK_RESPONSE
-// message. Where the filename is the chunk index
+// message. Where the filename is the chunk index number.p2p
 
 // :return: false on failure
 bool Peer::read_message(const int socket, uint8_t &out_message_type,
@@ -97,9 +97,9 @@ bool Peer::read_message(const int socket, uint8_t &out_message_type,
 	out_message_type = m[0];
 	pull_filename(out_file_name, m);
 	out_num_chunks = ntohl((*((uint32_t *)&(m[256]))));
-	out_chunk_request_begin_idx = (*((uint32_t *)&(m[260])));
-	out_chunk_request_end_idx = (*((uint32_t *)&(m[264])));
-	out_current_chunk_idx = (*((uint32_t *)&(m[268])));
+	out_chunk_request_begin_idx = ntohl(*((uint32_t *)&(m[260])));
+	out_chunk_request_end_idx = ntohl(*((uint32_t *)&(m[264])));
+	out_current_chunk_idx = ntohl(*((uint32_t *)&(m[268])));
 	// Check if this is a Chunk response message
 	if (out_message_type == PeerMessageType::CHUNK_RESPONSE) {
 		// Chunk buffer
