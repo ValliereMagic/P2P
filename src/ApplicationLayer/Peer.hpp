@@ -17,6 +17,7 @@ static const size_t constexpr CHUNK_SIZE = 32 * 1000 * 1000;
 static const constexpr char FILE_EXTENSION[] = ".p2p";
 
 class Peer {
+	friend class Tests;
 	// Function to insert a filename string into the PeerMessage Header
 
 	// :return: false when the filename is too long
@@ -33,13 +34,23 @@ class Peer {
 
 	// :return: false when the filename is too long
 	static bool
-	build_message_header(PeerMessage &out_message,
-			     const uint8_t message_type,
-			     const std::string &file_name = "",
-			     const uint32_t num_chunks = 0,
-			     const uint32_t chunk_request_begin_idx = 0,
-			     const uint32_t chunk_request_end_idx = 0,
-			     const uint32_t current_chunk_idx = 0);
+	serialize_message_header(PeerMessage &out_message,
+				 const uint8_t message_type,
+				 const std::string &file_name = "",
+				 const uint32_t num_chunks = 0,
+				 const uint32_t chunk_request_begin_idx = 0,
+				 const uint32_t chunk_request_end_idx = 0,
+				 const uint32_t current_chunk_idx = 0);
+
+	// Deconstruct a Peer message into its parts.
+
+	// :return: false on failure
+	static void deserialize_message_header(
+		const PeerMessage &message, uint8_t &out_message_type,
+		std::string &out_file_name, uint32_t &out_num_chunks,
+		uint32_t &out_chunk_request_begin_idx,
+		uint32_t &out_chunk_request_end_idx,
+		uint32_t &out_current_chunk_idx);
 
     public:
 	// Returns the pieces of the message extracted from the header, as well as

@@ -51,13 +51,13 @@ void Peer::pull_filename(std::string &out_filename, const PeerMessage &message)
 // take care of that.
 
 // :return: false when the filename is too long
-bool Peer::build_message_header(PeerMessage &out_message,
-				const uint8_t message_type,
-				const std::string &file_name,
-				const uint32_t num_chunks,
-				const uint32_t chunk_request_begin_idx,
-				const uint32_t chunk_request_end_idx,
-				const uint32_t current_chunk_idx)
+bool Peer::serialize_message_header(PeerMessage &out_message,
+				    const uint8_t message_type,
+				    const std::string &file_name,
+				    const uint32_t num_chunks,
+				    const uint32_t chunk_request_begin_idx,
+				    const uint32_t chunk_request_end_idx,
+				    const uint32_t current_chunk_idx)
 {
 	// Clear the header
 	out_message.fill(0);
@@ -74,6 +74,26 @@ bool Peer::build_message_header(PeerMessage &out_message,
 	(*((uint32_t *)&(out_message[264]))) = htonl(chunk_request_end_idx);
 	(*((uint32_t *)&(out_message[268]))) = htonl(current_chunk_idx);
 	return true;
+}
+
+// Deconstruct a Peer message into its parts.
+
+// :return: false on failure
+void Peer::deserialize_message_header(const PeerMessage &message,
+				      uint8_t &out_message_type,
+				      std::string &out_file_name,
+				      uint32_t &out_num_chunks,
+				      uint32_t &out_chunk_request_begin_idx,
+				      uint32_t &out_chunk_request_end_idx,
+				      uint32_t &out_current_chunk_idx)
+{
+	// Pull the fields
+	out_message_type = message[0];
+	pull_filename(out_file_name, message);
+	out_num_chunks = ntohl((*((uint32_t *)&(message[256]))));
+	out_chunk_request_begin_idx = ntohl(*((uint32_t *)&(message[260])));
+	out_chunk_request_end_idx = ntohl(*((uint32_t *)&(message[264])));
+	out_current_chunk_idx = ntohl(*((uint32_t *)&(message[268])));
 }
 
 // Returns the pieces of the message extracted from the header, as well as
@@ -93,13 +113,10 @@ bool Peer::read_message(const int socket, uint8_t &out_message_type,
 	if (read(socket, m.data(), m.size()) < (ssize_t)m.size()) {
 		return false;
 	}
-	// Pull the fields
-	out_message_type = m[0];
-	pull_filename(out_file_name, m);
-	out_num_chunks = ntohl((*((uint32_t *)&(m[256]))));
-	out_chunk_request_begin_idx = ntohl(*((uint32_t *)&(m[260])));
-	out_chunk_request_end_idx = ntohl(*((uint32_t *)&(m[264])));
-	out_current_chunk_idx = ntohl(*((uint32_t *)&(m[268])));
+	deserialize_message_header(m, out_message_type, out_file_name,
+				   out_num_chunks, out_chunk_request_begin_idx,
+				   out_chunk_request_end_idx,
+				   out_current_chunk_idx);
 	// Check if this is a Chunk response message
 	if (out_message_type == PeerMessageType::CHUNK_RESPONSE) {
 		// Chunk buffer
