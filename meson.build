@@ -16,4 +16,5 @@ executable('DiscoveryServer', server_src,
            cpp_args: compiler_args)
 
 executable('ApplicationLayerTests', application_layer_tests_src,
+            dependencies: [pthread_dep],
            cpp_args: compiler_args)

@@ -26,6 +26,8 @@ chunk_request_begin_idx: 4, // For Chunk request / response, the begin index of
 chunk_request_end_idx: 4, // For Chunk request / response, the end index of the
                           // chunks we are requesting from the other client.
 current_chunk_idx: 4 // For chunk response. (the current chunk we are sending)
+
+current_chunk_size: 4 // A file may not be an exact multiple of chunks in size.
 Total Header Length: 272 Bytes
 
 Message Types:
@@ -46,4 +48,5 @@ Chunk Request -> We found out that a client has a file we want, request a set of
 Chunk Response -> Respond to the client with the chunks that they requested.
     Populated header fields:
         - chunk_idx
+        - current_chunk_size
         - contains 32Mb payload after header
