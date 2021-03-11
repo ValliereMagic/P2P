@@ -3,7 +3,7 @@
 namespace ApplicationLayer
 {
 // Message Definition
-using PeerMessage = std::array<uint8_t, 1 + 255 + 4 + 4 + 4 + 4>;
+using PeerMessage = std::array<uint8_t, 1 + 255 + 4 + 4 + 4 + 4 + 4>;
 enum PeerMessageType {
 	FILE_REQUEST = 0,
 	FILE_RESPONSE,
@@ -40,7 +40,8 @@ class Peer {
 				 const uint32_t num_chunks = 0,
 				 const uint32_t chunk_request_begin_idx = 0,
 				 const uint32_t chunk_request_end_idx = 0,
-				 const uint32_t current_chunk_idx = 0);
+				 const uint32_t current_chunk_idx = 0,
+				 const uint32_t current_chunk_size = 0);
 
 	// Deconstruct a Peer message into its parts.
 
@@ -50,7 +51,8 @@ class Peer {
 		std::string &out_file_name, uint32_t &out_num_chunks,
 		uint32_t &out_chunk_request_begin_idx,
 		uint32_t &out_chunk_request_end_idx,
-		uint32_t &out_current_chunk_idx);
+		uint32_t &out_current_chunk_idx,
+		uint32_t &out_current_chunk_size);
 
     public:
 	// Returns the pieces of the message extracted from the header, as well as
@@ -64,6 +66,7 @@ class Peer {
 				 uint32_t &out_chunk_request_begin_idx,
 				 uint32_t &out_chunk_request_end_idx,
 				 uint32_t &out_current_chunk_idx,
+				 uint32_t &out_current_chunk_size,
 				 const std::string &temp_chunk_dir = "/tmp/");
 
 	// Write the message to the client socket passed. If this is a Chunk

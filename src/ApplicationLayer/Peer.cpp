@@ -1,4 +1,6 @@
+#include <cstdio>
 #include <iosfwd>
+#include <iostream>
 #include <sys/types.h>
 #include <vector>
 #include <sstream>
@@ -46,9 +48,9 @@ void Peer::pull_filename(std::string &out_filename, const PeerMessage &message)
 	}
 }
 
-// Build a peer message to send to another peer. File name can be no longer
-// than 255 bytes. Do not add the extra null terminator. This function will
-// take care of that.
+// Build a peer message to send to another peer. File name can be no longer than
+// 255 bytes. Do not add the extra null terminator. This function will take care
+// of that.
 
 // :return: false when the filename is too long
 bool Peer::serialize_message_header(PeerMessage &out_message,
@@ -57,7 +59,8 @@ bool Peer::serialize_message_header(PeerMessage &out_message,
 				    const uint32_t num_chunks,
 				    const uint32_t chunk_request_begin_idx,
 				    const uint32_t chunk_request_end_idx,
-				    const uint32_t current_chunk_idx)
+				    const uint32_t current_chunk_idx,
+				    const uint32_t current_chunk_size)
 {
 	// Clear the header
 	out_message.fill(0);
@@ -73,6 +76,7 @@ bool Peer::serialize_message_header(PeerMessage &out_message,
 	(*((uint32_t *)&(out_message[260]))) = htonl(chunk_request_begin_idx);
 	(*((uint32_t *)&(out_message[264]))) = htonl(chunk_request_end_idx);
 	(*((uint32_t *)&(out_message[268]))) = htonl(current_chunk_idx);
+	(*((uint32_t *)&(out_message[272]))) = htonl(current_chunk_size);
 	return true;
 }
 
@@ -85,7 +89,8 @@ void Peer::deserialize_message_header(const PeerMessage &message,
 				      uint32_t &out_num_chunks,
 				      uint32_t &out_chunk_request_begin_idx,
 				      uint32_t &out_chunk_request_end_idx,
-				      uint32_t &out_current_chunk_idx)
+				      uint32_t &out_current_chunk_idx,
+				      uint32_t &out_current_chunk_size)
 {
 	// Pull the fields
 	out_message_type = message[0];
@@ -94,6 +99,7 @@ void Peer::deserialize_message_header(const PeerMessage &message,
 	out_chunk_request_begin_idx = ntohl(*((uint32_t *)&(message[260])));
 	out_chunk_request_end_idx = ntohl(*((uint32_t *)&(message[264])));
 	out_current_chunk_idx = ntohl(*((uint32_t *)&(message[268])));
+	out_current_chunk_size = ntohl(*((uint32_t *)&(message[272])));
 }
 
 // Returns the pieces of the message extracted from the header, as well as
@@ -106,25 +112,42 @@ bool Peer::read_message(const int socket, uint8_t &out_message_type,
 			uint32_t &out_chunk_request_begin_idx,
 			uint32_t &out_chunk_request_end_idx,
 			uint32_t &out_current_chunk_idx,
+			uint32_t &out_current_chunk_size,
 			const std::string &temp_chunk_dir)
 {
 	PeerMessage m;
 	// Read in a Peer Message Header
 	if (read(socket, m.data(), m.size()) < (ssize_t)m.size()) {
+		std::cerr << "Error. Unable to read header from socket.\n";
 		return false;
 	}
 	deserialize_message_header(m, out_message_type, out_file_name,
 				   out_num_chunks, out_chunk_request_begin_idx,
 				   out_chunk_request_end_idx,
-				   out_current_chunk_idx);
+				   out_current_chunk_idx,
+				   out_current_chunk_size);
 	// Check if this is a Chunk response message
 	if (out_message_type == PeerMessageType::CHUNK_RESPONSE) {
 		// Chunk buffer
 		std::vector<uint8_t> chunk(CHUNK_SIZE);
+		// A lot of pain was solved by reading this...
+		// https://stackoverflow.com/questions/14399691/send-not-deliver-all-bytes
 		// read in the chunk
-		if (read(socket, chunk.data(), chunk.size()) <
-		    (ssize_t)chunk.size()) {
-			return false;
+		uint32_t bytes_left = out_current_chunk_size;
+		uint8_t *read_ptr = chunk.data();
+		while (bytes_left > 0) {
+			// Try to read it all in at once (unlikely)
+			ssize_t bytes_read = read(socket, read_ptr, bytes_left);
+			if (bytes_read < 0) {
+				std::cerr
+					<< "Error. Unable to read a least 1 byte for the "
+					   "data portion of a CHUNK_RESPONSE.\n";
+				return false;
+			}
+			// Decrement the amount of bytes we still have to read in, and move
+			// our pointer ahead the number of bytes we have read.
+			bytes_left -= bytes_read;
+			read_ptr += bytes_read;
 		}
 		// Build the chunk filename
 		std::stringstream filename;
@@ -135,14 +158,121 @@ bool Peer::read_message(const int socket, uint8_t &out_message_type,
 				     O_CREAT | O_WRONLY | O_TRUNC, 0644);
 		// Make sure we were able to open the file.
 		if (chunk_fid < 0) {
+			std::cerr
+				<< "Error. Unable to write chunk to temp chunk file.\n";
 			return false;
 		}
 		// Write it to the temp file
-		if (write(chunk_fid, chunk.data(), chunk.size()) <
-		    (ssize_t)chunk.size()) {
+		if (write(chunk_fid, chunk.data(), out_current_chunk_size) <
+		    out_current_chunk_size) {
+			std::cerr
+				<< "Error while writing chunk to temp file.\n";
 			close(chunk_fid);
 			return false;
 		}
+		close(chunk_fid);
+	}
+	return true;
+}
+
+// Write the message to the client socket passed. If this is a Chunk Response
+// message then the corresponding chunk of the file will also be sent to the
+// client as the message payload.
+
+// :return: false on failure
+bool Peer::write_message(const int socket, const uint8_t message_type,
+			 const std::string &file_name,
+			 const uint32_t num_chunks,
+			 const uint32_t chunk_request_begin_idx,
+			 const uint32_t chunk_request_end_idx,
+			 const uint32_t current_chunk_idx,
+			 const std::string &filename_to_send)
+{
+	PeerMessage m;
+	if (message_type != PeerMessageType::CHUNK_RESPONSE) {
+		// Build the header
+		if (!serialize_message_header(
+			    m, message_type, file_name, num_chunks,
+			    chunk_request_begin_idx, chunk_request_end_idx,
+			    current_chunk_idx)) {
+			std::cerr
+				<< "Error. Unable to serialize message header.\n";
+			return false;
+		}
+		// Send the header
+		if (write(socket, m.data(), m.size()) < (ssize_t)m.size()) {
+			std::cerr << "Error. Unable to send header to peer.\n";
+			return false;
+		}
+	} else {
+		// If the message_type is a CHUNK_RESPONSE we need to read a chunk of
+		// the file from disk, and send it in this message.
+		// Open the file to send a chunk of
+		int chunk_fid = open(filename_to_send.c_str(), O_RDONLY, 0444);
+		// Make sure we were able to open the file
+		if (chunk_fid < 0) {
+			std::cerr
+				<< "Error. Unable to read from file being shared.\n";
+			return false;
+		}
+		// Seek to the beginning of the chunk to send
+		if (lseek(chunk_fid, current_chunk_idx * CHUNK_SIZE,
+			  SEEK_SET) == -1) {
+			std::cerr << "Error. chunk index out of range.\n";
+			close(chunk_fid);
+			return false;
+		}
+		// Chunk of the file to send to the other peer.
+		std::vector<uint8_t> chunk(CHUNK_SIZE);
+		// If this chunk is the end chunk of the file, then it may be less than
+		// CHUNK_SIZE
+		uint32_t actual_chunk_size;
+		if ((actual_chunk_size =
+			     read(chunk_fid, chunk.data(), CHUNK_SIZE)) < 1) {
+			std::cerr << "Unable to read chunk from send file.\n";
+			close(chunk_fid);
+			return false;
+		}
+		// Build the header
+		if (!serialize_message_header(
+			    m, message_type, file_name, num_chunks,
+			    chunk_request_begin_idx, chunk_request_end_idx,
+			    current_chunk_idx, actual_chunk_size)) {
+			std::cerr
+				<< "Error. Unable to serialize message header.\n";
+			close(chunk_fid);
+			return false;
+		}
+		// Send the header
+		if (write(socket, m.data(), m.size()) < (ssize_t)m.size()) {
+			std::cerr << "Error. Unable to send header to peer.\n";
+			close(chunk_fid);
+			return false;
+		}
+		// A lot of pain was solved by reading this...
+		// https://stackoverflow.com/questions/14399691/send-not-deliver-all-bytes
+		// Send the chunk to the peer
+		uint32_t bytes_left = actual_chunk_size;
+		uint8_t *write_ptr = chunk.data();
+		// Keep sending data until we have sent the entire chunk.
+		while (bytes_left > 0) {
+			// Try to write out the whole thing at once (unlikely to happen)
+			ssize_t bytes_written =
+				write(socket, write_ptr, bytes_left);
+			if (bytes_written < 0) {
+				std::cerr
+					<< "Error. Unable to read a least 1 byte for the "
+					   "data portion of a CHUNK_RESPONSE.\n";
+				close(chunk_fid);
+				return false;
+			}
+			// Decrement the amount of bytes we have left to send, and increment
+			// our write pointer the number of bytes we already have out the
+			// door.
+			bytes_left -= bytes_written;
+			write_ptr += bytes_written;
+		}
+		// Close our file descriptor to the send file.
 		close(chunk_fid);
 	}
 	return true;
