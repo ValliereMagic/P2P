@@ -101,7 +101,7 @@ class Tests {
 				client_fd, message_type, filename, num_chunks,
 				chunk_request_begin_idx, chunk_request_end_idx,
 				current_chunk_idx, current_chunk_size,
-				"/home/vallieremagic/DATA2/Development/COIS-4310H/P2P/");
+				"../");
 			assert((message_type ==
 				PeerMessageType::CHUNK_RESPONSE) &&
 			       (filename == "test_file") && (num_chunks == 1) &&
@@ -138,7 +138,7 @@ class Tests {
 		bool success = Peer::write_message(
 			client_socket, PeerMessageType::CHUNK_RESPONSE,
 			"test_file", 1, 0, 0, 0,
-			"/home/vallieremagic/DATA2/Development/COIS-4310H/P2P/test_file");
+			"../test_file");
 		assert(success);
 		server.join();
 		close(client_socket);
