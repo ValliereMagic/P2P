@@ -7,6 +7,8 @@ using SwarmMessage = std::array<uint8_t, 1 + 4 + 2>;
 enum SwarmMessageType { REMOVE = 0, ADD = 1 };
 
 class Swarm {
+	friend class SwarmTests;
+
     public:
 	// add the byte representation of the passed address and port (which already
 	// need to be in network byte order) to the passed SwarmMessage

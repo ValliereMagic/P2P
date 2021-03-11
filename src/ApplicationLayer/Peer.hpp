@@ -17,7 +17,7 @@ static const size_t constexpr CHUNK_SIZE = 32 * 1000 * 1000;
 static const constexpr char FILE_EXTENSION[] = ".p2p";
 
 class Peer {
-	friend class Tests;
+	friend class PeerTests;
 	// Function to insert a filename string into the PeerMessage Header
 
 	// :return: false when the filename is too long
