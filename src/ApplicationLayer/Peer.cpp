@@ -77,7 +77,7 @@ Peer::read_chunk(const std::string &filename, const uint32_t chunk_idx)
 	// Close the file. We are done reading.
 	close(chunk_fid);
 	// Return back our shiny new chunk.
-	return std::make_tuple(true, chunk, actual_chunk_size);
+	return std::make_tuple(true, std::move(chunk), actual_chunk_size);
 }
 // Build a peer message to send to another peer. File name can be no longer than
 // 255 bytes. Do not add the extra null terminator. This function will take care
