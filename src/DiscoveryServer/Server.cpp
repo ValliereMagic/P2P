@@ -1,8 +1,8 @@
 #include "src/ApplicationLayer/Swarm.hpp"
-#include <netinet/in.h>
 extern "C" {
 #include <unistd.h>
 #include <arpa/inet.h>
+#include <netinet/in.h>
 }
 #include <string>
 #include <algorithm>
@@ -75,8 +75,6 @@ static void register_peer(int client_socket, sockaddr client_addr)
 				return;
 			}
 		}
-		// Add ourselves to the peers list.
-		peers.push_back(std::make_tuple(client_socket, address, port));
 		// Notify the other threads that we have joined.
 		for (auto &peer : peers) {
 			int peer_fd = std::get<0>(peer);
@@ -89,6 +87,8 @@ static void register_peer(int client_socket, sockaddr client_addr)
 				return;
 			}
 		}
+		// Add ourselves to the peers list.
+		peers.push_back(std::make_tuple(client_socket, address, port));
 	}
 	// Wait for the client to send us the disconnect message to signify they are
 	// leaving (the data better be the same as the first time they sent it.)
