@@ -83,11 +83,11 @@ class Peer {
 
 	// :return: false on failure
 	static bool write_message(const int socket, const uint8_t message_type,
-				  const std::string &file_name,
-				  const uint32_t num_chunks,
-				  const uint32_t chunk_request_begin_idx,
-				  const uint32_t chunk_request_end_idx,
-				  const uint32_t current_chunk_idx,
+				  const std::string &file_name = "",
+				  const uint32_t num_chunks = 0,
+				  const uint32_t chunk_request_begin_idx = 0,
+				  const uint32_t chunk_request_end_idx = 0,
+				  const uint32_t current_chunk_idx = 0,
 				  const std::string &filename_to_send = "");
 };
 } // namespace ApplicationLayer
