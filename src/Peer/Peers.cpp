@@ -81,7 +81,7 @@ void Peers::start(void)
 				    server_fd, mode_to_add, address_to_add,
 				    port_to_add, m)) {
 				std::cerr
-					<< "Unable to read message. May be shutting down.\n";
+					<< "Unable to read Swarm message. May be shutting down.\n";
 				close(server_fd);
 				return;
 			}
