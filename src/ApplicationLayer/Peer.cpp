@@ -1,11 +1,6 @@
-#include <cstdio>
-#include <iosfwd>
-#include <iostream>
-#include <sys/types.h>
-#include <vector>
-#include <sstream>
-
 #include "Peer.hpp"
+#include <iostream>
+#include <sstream>
 extern "C" {
 #include <netinet/in.h>
 #include <unistd.h>
@@ -48,6 +43,42 @@ void Peer::pull_filename(std::string &out_filename, const PeerMessage &message)
 	}
 }
 
+// Function to read a chunk in from a file
+
+// :return: (whether we were successful, the chunk, the size of the chunk)
+std::tuple<bool, std::vector<uint8_t>, uint32_t>
+Peer::read_chunk(const std::string &filename, const uint32_t chunk_idx)
+{
+	// the file from disk, and send it in this message.
+	// Open the file to send a chunk of
+	int chunk_fid = open(filename.c_str(), O_RDONLY, 0444);
+	// Make sure we were able to open the file
+	if (chunk_fid < 0) {
+		std::cerr << "Error. Unable to read from file being shared.\n";
+		return std::make_tuple(false, std::vector<uint8_t>(), 0);
+	}
+	// Seek to the beginning of the chunk to send
+	if (lseek(chunk_fid, chunk_idx * CHUNK_SIZE, SEEK_SET) == -1) {
+		std::cerr << "Error. chunk index out of range.\n";
+		close(chunk_fid);
+		return std::make_tuple(false, std::vector<uint8_t>(), 0);
+	}
+	// Chunk of the file to send to the other peer.
+	std::vector<uint8_t> chunk(CHUNK_SIZE);
+	// If this chunk is the end chunk of the file, then it may be less than
+	// CHUNK_SIZE
+	uint32_t actual_chunk_size;
+	if ((actual_chunk_size = read(chunk_fid, chunk.data(), CHUNK_SIZE)) <
+	    1) {
+		std::cerr << "Unable to read chunk from send file.\n";
+		close(chunk_fid);
+		return std::make_tuple(false, std::vector<uint8_t>(), 0);
+	}
+	// Close the file. We are done reading.
+	close(chunk_fid);
+	// Return back our shiny new chunk.
+	return std::make_tuple(true, chunk, actual_chunk_size);
+}
 // Build a peer message to send to another peer. File name can be no longer than
 // 255 bytes. Do not add the extra null terminator. This function will take care
 // of that.
@@ -207,32 +238,14 @@ bool Peer::write_message(const int socket, const uint8_t message_type,
 	} else {
 		// If the message_type is a CHUNK_RESPONSE we need to read a chunk of
 		// the file from disk, and send it in this message.
-		// Open the file to send a chunk of
-		int chunk_fid = open(filename_to_send.c_str(), O_RDONLY, 0444);
-		// Make sure we were able to open the file
-		if (chunk_fid < 0) {
-			std::cerr
-				<< "Error. Unable to read from file being shared.\n";
+		auto chunk_tuple =
+			read_chunk(filename_to_send, current_chunk_idx);
+		bool success = std::get<0>(chunk_tuple);
+		// We were unable to successfully read in the chunk of the file
+		if (!success)
 			return false;
-		}
-		// Seek to the beginning of the chunk to send
-		if (lseek(chunk_fid, current_chunk_idx * CHUNK_SIZE,
-			  SEEK_SET) == -1) {
-			std::cerr << "Error. chunk index out of range.\n";
-			close(chunk_fid);
-			return false;
-		}
-		// Chunk of the file to send to the other peer.
-		std::vector<uint8_t> chunk(CHUNK_SIZE);
-		// If this chunk is the end chunk of the file, then it may be less than
-		// CHUNK_SIZE
-		uint32_t actual_chunk_size;
-		if ((actual_chunk_size =
-			     read(chunk_fid, chunk.data(), CHUNK_SIZE)) < 1) {
-			std::cerr << "Unable to read chunk from send file.\n";
-			close(chunk_fid);
-			return false;
-		}
+		std::vector<uint8_t> chunk(std::move(std::get<1>(chunk_tuple)));
+		uint32_t actual_chunk_size = std::get<2>(chunk_tuple);
 		// Build the header
 		if (!serialize_message_header(
 			    m, message_type, file_name, num_chunks,
@@ -240,13 +253,11 @@ bool Peer::write_message(const int socket, const uint8_t message_type,
 			    current_chunk_idx, actual_chunk_size)) {
 			std::cerr
 				<< "Error. Unable to serialize message header.\n";
-			close(chunk_fid);
 			return false;
 		}
 		// Send the header
 		if (write(socket, m.data(), m.size()) < (ssize_t)m.size()) {
 			std::cerr << "Error. Unable to send header to peer.\n";
-			close(chunk_fid);
 			return false;
 		}
 		// A lot of pain was solved by reading this...
@@ -263,7 +274,6 @@ bool Peer::write_message(const int socket, const uint8_t message_type,
 				std::cerr
 					<< "Error. Unable to read a least 1 byte for the "
 					   "data portion of a CHUNK_RESPONSE.\n";
-				close(chunk_fid);
 				return false;
 			}
 			// Decrement the amount of bytes we have left to send, and increment
@@ -272,8 +282,6 @@ bool Peer::write_message(const int socket, const uint8_t message_type,
 			bytes_left -= bytes_written;
 			write_ptr += bytes_written;
 		}
-		// Close our file descriptor to the send file.
-		close(chunk_fid);
 	}
 	return true;
 }

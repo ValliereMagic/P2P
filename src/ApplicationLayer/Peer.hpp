@@ -1,5 +1,7 @@
 #pragma once
 #include <array>
+#include <vector>
+#include <tuple>
 namespace ApplicationLayer
 {
 // Message Definition
@@ -28,20 +30,25 @@ class Peer {
 	static void pull_filename(std::string &out_filename,
 				  const PeerMessage &message);
 
-	// Build a peer message to send to another peer. File name can be no longer
-	// than 255 bytes. Do not add the extra null terminator. This function will
-	// take care of that.
+	// Function to read a chunk in from a file
 
-	// :return: false when the filename is too long
-	static bool
-	serialize_message_header(PeerMessage &out_message,
-				 const uint8_t message_type,
-				 const std::string &file_name = "",
-				 const uint32_t num_chunks = 0,
-				 const uint32_t chunk_request_begin_idx = 0,
-				 const uint32_t chunk_request_end_idx = 0,
-				 const uint32_t current_chunk_idx = 0,
-				 const uint32_t current_chunk_size = 0);
+	// :return: (whether we were successful, the chunk, the size of the chunk) 
+	static std::tuple<bool, std::vector<uint8_t>, uint32_t >
+	read_chunk(const std::string &filename, const uint32_t chunk_idx);
+
+		// Build a peer message to send to another peer. File name can be no longer
+		// than 255 bytes. Do not add the extra null terminator. This function will
+		// take care of that.
+
+		// :return: false when the filename is too long
+		static bool serialize_message_header(
+			PeerMessage &out_message, const uint8_t message_type,
+			const std::string &file_name = "",
+			const uint32_t num_chunks = 0,
+			const uint32_t chunk_request_begin_idx = 0,
+			const uint32_t chunk_request_end_idx = 0,
+			const uint32_t current_chunk_idx = 0,
+			const uint32_t current_chunk_size = 0);
 
 	// Deconstruct a Peer message into its parts.
 
