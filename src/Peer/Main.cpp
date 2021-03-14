@@ -173,8 +173,13 @@ int main(void)
 	// a filename was specified, download that file to the current directory. If
 	// not, be a seeder to the pool for the files specified. If no files
 	// specified then just seed.
+	// Enter seed mode
+	std::cout << "Entering seed mode. Hit enter to exit.\n";
+	std::getline(std::cin, address);
 	peers.stop();
-	seeder->stop();
+	if (seeder) {
+		seeder->stop();
+	}
 	peers_instance = nullptr;
 	seeders_instance = nullptr;
 	return EXIT_SUCCESS;
