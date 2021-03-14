@@ -55,11 +55,18 @@ void Peers::start(void)
 			std::cerr
 				<< "Error. Unable to connect to unix socket as client.\n";
 			close(server_fd);
+			exit(EXIT_FAILURE);
 		}
 		// Build our Swarm announce message
 		ApplicationLayer::SwarmMessage m;
 		uint32_t converted_address;
-		inet_pton(AF_INET, our_address.c_str(), &converted_address);
+		if (inet_pton(AF_INET, our_address.c_str(),
+			      &converted_address) <= 0) {
+			std::cerr
+				<< "Error. User didn't enter a valid IPV4 address to listen on.\n";
+			close(server_fd);
+			exit(EXIT_FAILURE);
+		}
 		ApplicationLayer::Swarm::build_message(
 			ApplicationLayer::SwarmMessageType::ADD,
 			converted_address, htons(our_port), m);
@@ -68,7 +75,7 @@ void Peers::start(void)
 			std::cerr
 				<< "Error. Unable to send Swarm announce message to the server\n";
 			close(server_fd);
-			return;
+			exit(EXIT_FAILURE);
 		}
 		// Expect to receive messages from the server now. Add or remove these
 		// from the PeersList
@@ -83,7 +90,7 @@ void Peers::start(void)
 				std::cerr
 					<< "Unable to read Swarm message. May be shutting down.\n";
 				close(server_fd);
-				return;
+				exit(EXIT_FAILURE);
 			}
 			// Process the swarm message
 			{
