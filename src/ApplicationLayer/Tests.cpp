@@ -99,7 +99,7 @@ class PeerTests {
 			bool success = Peer::read_message(
 				client_fd, message_type, filename, num_chunks,
 				chunk_request_begin_idx, chunk_request_end_idx,
-				current_chunk_idx, current_chunk_size, "../");
+				current_chunk_idx, current_chunk_size, false, "../");
 			assert((message_type ==
 				PeerMessageType::CHUNK_RESPONSE) &&
 			       (filename == "test_file") && (num_chunks == 1) &&

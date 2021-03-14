@@ -143,7 +143,7 @@ bool Peer::read_message(const int socket, uint8_t &out_message_type,
 			uint32_t &out_chunk_request_begin_idx,
 			uint32_t &out_chunk_request_end_idx,
 			uint32_t &out_current_chunk_idx,
-			uint32_t &out_current_chunk_size,
+			uint32_t &out_current_chunk_size, const bool listener,
 			const std::string &temp_chunk_dir)
 {
 	PeerMessage m;
@@ -157,8 +157,9 @@ bool Peer::read_message(const int socket, uint8_t &out_message_type,
 				   out_chunk_request_end_idx,
 				   out_current_chunk_idx,
 				   out_current_chunk_size);
-	// Check if this is a Chunk response message
-	if (out_message_type == PeerMessageType::CHUNK_RESPONSE) {
+	// Check if this is a Chunk response message and make sure we are not a
+	// seeder.
+	if (out_message_type == PeerMessageType::CHUNK_RESPONSE && !listener) {
 		// Chunk buffer
 		std::vector<uint8_t> chunk(CHUNK_SIZE);
 		// A lot of pain was solved by reading this...

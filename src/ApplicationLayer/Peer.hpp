@@ -75,6 +75,7 @@ class Peer {
 				 uint32_t &out_chunk_request_end_idx,
 				 uint32_t &out_current_chunk_idx,
 				 uint32_t &out_current_chunk_size,
+				 const bool listener = false,
 				 const std::string &temp_chunk_dir = "/tmp/");
 
 	// Write the message to the client socket passed. If this is a Chunk
