@@ -15,20 +15,21 @@ extern "C" {
 // IP Address and Port of the Swarm Server
 static const constexpr char SERVER_ADDRESS[] = "127.0.0.1";
 static const constexpr uint16_t PORT = 50001;
-static Peer::Peers *peers_instance = nullptr;
-static Peer::Seeder *seeders_instance = nullptr;
+static std::weak_ptr<Peer::Peers> peers_instance;
+static std::unique_ptr<Peer::Seeder> seeder = nullptr;
 // On exit, this function is called to close the server_socket_fd
 // and destroy the rwlock.
 void cleanup_on_exit(int signum)
 {
 	// Close our connection to the Peers server
 	// and unregister ourselves
-	if (peers_instance != nullptr) {
-		peers_instance->stop();
+	if (!(peers_instance.expired())) {
+		auto ptr = peers_instance.lock();
+		ptr->stop();
 	}
 	// Close the seeder server
-	if (seeders_instance != nullptr) {
-		seeders_instance->stop();
+	if (seeder != nullptr) {
+		seeder->stop();
 	}
 	exit(signum);
 }
@@ -87,7 +88,7 @@ get_files_to_share(void)
 		if (!std::getline(std::cin, filename)) {
 			std::cerr
 				<< "Error. Unable to read in line from stdin.\n";
-			exit(EXIT_FAILURE);
+			cleanup_on_exit(EXIT_FAILURE);
 		}
 		// return back if the user doesn't enter a filename.
 		if (filename == "") {
@@ -98,14 +99,14 @@ get_files_to_share(void)
 		if (!std::getline(std::cin, file_complete_path)) {
 			std::cerr
 				<< "Error. Unable to read in line from stdin.\n";
-			exit(EXIT_FAILURE);
+			cleanup_on_exit(EXIT_FAILURE);
 		}
 		// Calculate the number of chunks that the file takes up:
 		struct stat file_info;
 		if (stat(file_complete_path.c_str(), &file_info) < 0) {
 			std::cerr
 				<< "Error. File doesn't exist at this path.\n";
-			exit(EXIT_FAILURE);
+			cleanup_on_exit(EXIT_FAILURE);
 		}
 		// Calculate the number of chunks in the file
 		size_t file_length = file_info.st_size;
@@ -130,13 +131,14 @@ int main(void)
 		return EXIT_FAILURE;
 	}
 	// Connect to swarm server and acquire peer ip addresses.
-	Peer::Peers peers(SERVER_ADDRESS, PORT, address, port);
-	peers_instance = &peers;
-	peers.start();
+	std::shared_ptr<Peer::Peers> peers(
+		new Peer::Peers(SERVER_ADDRESS, PORT, address, port));
+	peers_instance = peers;
+	peers->start();
 	// Wait for the peer messages to come in...
 	std::this_thread::sleep_for(std::chrono::milliseconds(250));
 	// Pull the list of peer messages
-	Peer::PeersList live_peers = peers.get_current_peers();
+	Peer::PeersList live_peers = peers->get_current_peers();
 	// Check if we are the only peer currently in the swarm
 	if (live_peers.size() == 0) {
 		std::cout << "We are currently the only peer in the swarm.\n";
@@ -149,15 +151,12 @@ int main(void)
 		std::cout
 			<< "Shutting down, we have no files to share, and there are "
 			   "no peers in the swarm.\n";
-		peers.stop();
-		return EXIT_SUCCESS;
+		cleanup_on_exit(EXIT_SUCCESS);
 	}
 	// Start the file request listener with the list of shared files
-	std::unique_ptr<Peer::Seeder> seeder;
 	if (files.size() > 0) {
 		seeder.reset(new Peer::Seeder(address, port, std::move(files)));
 		seeder->start();
-		seeders_instance = seeder.get();
 	}
 	// Ask the user if they want to download a file and ask for the filename.
 	std::cout << "If you would like to download a file, "
@@ -165,9 +164,18 @@ int main(void)
 	std::string filename_to_download;
 	if (!std::getline(std::cin, filename_to_download)) {
 		std::cerr << "Error. Unable to read in line from stdin.\n";
-		exit(EXIT_FAILURE);
+		cleanup_on_exit(EXIT_FAILURE);
 	}
+	// The user specified a file to download:
 	if (!(filename_to_download.empty())) {
+		std::cout << "Please enter a directory to save the file in "
+			     "(WITH A TRAILING /): ";
+		std::string save_path;
+		if (!std::getline(std::cin, save_path)) {
+			std::cerr
+				<< "Error. Unable to read in line from stdin.\n";
+			cleanup_on_exit(EXIT_FAILURE);
+		}
 		// Start the Leecher system
 	}
 	// If a filename was specified, download that file to the current directory.
@@ -175,11 +183,6 @@ int main(void)
 	// specified then just seed.
 	std::cout << "Entering seed mode. Hit enter to exit.\n";
 	std::getline(std::cin, address);
-	peers.stop();
-	if (seeder) {
-		seeder->stop();
-	}
-	peers_instance = nullptr;
-	seeders_instance = nullptr;
+	cleanup_on_exit(EXIT_SUCCESS);
 	return EXIT_SUCCESS;
 }
