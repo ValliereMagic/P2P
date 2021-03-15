@@ -21,6 +21,11 @@ class Seeder {
 	       std::unordered_map<std::string, std::tuple<std::string, uint32_t> >
 		       &&files_list);
 	~Seeder(void);
+	// This cannot be moved, deleted, or reassigned
+	Seeder(Seeder &&seeder) = delete;
+	Seeder(Seeder &seeder) = delete;
+	Seeder &operator=(Seeder &seeder) = delete;
+	Seeder &operator=(Seeder &&seeder) = delete;
 	// Bind to the passed address and port, and listen for file requests,
 	// and chunk requests.
 	void start(void);

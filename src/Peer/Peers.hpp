@@ -22,6 +22,11 @@ class Peers {
 	// to.
 	Peers(const std::string &server_address, const uint16_t server_port,
 	      const std::string &our_address, const uint16_t our_port);
+	// This cannot be moved, deleted, or reassigned
+	Peers(Peers &&peer) = delete;
+	Peers(Peers &peer) = delete;
+	Peers &operator=(Peers &peer) = delete;
+	Peers &operator=(Peers &&peer) = delete;
 	~Peers(void);
 	// connect to the swarm server and listen for peers
 	void start(void);
