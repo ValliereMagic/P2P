@@ -2,20 +2,10 @@
 #include "Peers.hpp"
 #include "Seeder.hpp"
 
-#include "src/ApplicationLayer/Peer.hpp"
-#include <chrono>
-#include <cstdlib>
-#include <stdexcept>
-#include <string>
-#include <sys/stat.h>
-#include <thread>
-#include <tuple>
-#include <unordered_map>
-#include <utility>
-#include <vector>
 extern "C" {
 #include <netinet/in.h>
 #include <unistd.h>
+#include <sys/stat.h>
 #include <arpa/inet.h>
 }
 #include <csignal>
@@ -169,11 +159,20 @@ int main(void)
 		seeder->start();
 		seeders_instance = seeder.get();
 	}
-	// Ask the user if they want to download a file and ask for the filename. If
-	// a filename was specified, download that file to the current directory. If
-	// not, be a seeder to the pool for the files specified. If no files
+	// Ask the user if they want to download a file and ask for the filename.
+	std::cout << "If you would like to download a file, "
+		     "please enter the filename: ";
+	std::string filename_to_download;
+	if (!std::getline(std::cin, filename_to_download)) {
+		std::cerr << "Error. Unable to read in line from stdin.\n";
+		exit(EXIT_FAILURE);
+	}
+	if (!(filename_to_download.empty())) {
+		// Start the Leecher system
+	}
+	// If a filename was specified, download that file to the current directory.
+	// If not, be a seeder to the pool for the files specified. If no files
 	// specified then just seed.
-	// Enter seed mode
 	std::cout << "Entering seed mode. Hit enter to exit.\n";
 	std::getline(std::cin, address);
 	peers.stop();

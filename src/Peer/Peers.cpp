@@ -53,7 +53,7 @@ void Peers::start(void)
 		if (connect(server_fd, (sockaddr *)&address,
 			    sizeof(sockaddr_in)) == -1) {
 			std::cerr
-				<< "Error. Unable to connect to unix socket as client.\n";
+				<< "Error. Unable to connect to Swarm server.\n";
 			close(server_fd);
 			exit(EXIT_FAILURE);
 		}

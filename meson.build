@@ -13,6 +13,7 @@ application_layer_tests_src = ['src/ApplicationLayer/Tests.cpp',
 peer_src = ['src/Peer/Main.cpp',
 			'src/Peer/Peers.cpp',
 			'src/Peer/Seeder.cpp',
+			'src/Peer/Leecher.cpp',
 			'src/ApplicationLayer/Peer.cpp',
 			'src/ApplicationLayer/Swarm.cpp']
 
