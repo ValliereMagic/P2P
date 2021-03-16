@@ -5,9 +5,13 @@ namespace Peer
 class Leecher {
 	const std::shared_ptr<Peers> live_peers;
 
+	// Connect to the specified peer, (addr, port) and ask them if they have the
+	// passed filename.
+	static bool does_peer_have_file(const std::string &filename,
+					uint32_t addr, uint16_t port);
+
     public:
 	Leecher(std::shared_ptr<Peers> &live_peers);
-	~Leecher();
 	// This cannot be moved, deleted, or reassigned
 	Leecher(Leecher &&leecher) = delete;
 	Leecher(Leecher &leecher) = delete;

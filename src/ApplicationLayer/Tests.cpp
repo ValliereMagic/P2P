@@ -99,7 +99,8 @@ class PeerTests {
 			bool success = Peer::read_message(
 				client_fd, message_type, filename, num_chunks,
 				chunk_request_begin_idx, chunk_request_end_idx,
-				current_chunk_idx, current_chunk_size, false, "../");
+				current_chunk_idx, current_chunk_size, false,
+				"../");
 			assert((message_type ==
 				PeerMessageType::CHUNK_RESPONSE) &&
 			       (filename == "test_file") && (num_chunks == 1) &&
@@ -108,6 +109,14 @@ class PeerTests {
 			       (current_chunk_idx == 0) &&
 			       (current_chunk_size == 32 * 1000 * 1000) &&
 			       success);
+			// Test FILE_REQUEST message
+			success = Peer::read_message(
+				client_fd, message_type, filename, num_chunks,
+				chunk_request_begin_idx, chunk_request_end_idx,
+				current_chunk_idx, current_chunk_size, true);
+			assert((message_type ==
+				PeerMessageType::FILE_REQUEST) &&
+			       (filename == "test_file") && success);
 			close(client_fd);
 		});
 		// Connect to the server
@@ -135,6 +144,14 @@ class PeerTests {
 		bool success = Peer::write_message(
 			client_socket, PeerMessageType::CHUNK_RESPONSE,
 			"test_file", 1, 0, 0, 0, "../test_file");
+		assert(success);
+		// Write the message off to the "server"
+		// Ask the peer if they have this file
+		std::string filename = "test_file";
+		success = Peer::write_message(
+			client_socket,
+			ApplicationLayer::PeerMessageType::FILE_REQUEST,
+			filename);
 		assert(success);
 		server.join();
 		close(client_socket);
