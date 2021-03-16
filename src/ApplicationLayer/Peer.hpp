@@ -62,6 +62,11 @@ class Peer {
 		uint32_t &out_current_chunk_idx,
 		uint32_t &out_current_chunk_size);
 
+	template <typename T>
+	static bool send_or_recv_socket(int sock, T &container, size_t len,
+					ssize_t (*sock_func)(int sock, void *buff,
+							 size_t len));
+
     public:
 	// Returns the pieces of the message extracted from the header, as well as
 	// writes the chunk to the chunks folder passed if this is a CHUNK_RESPONSE

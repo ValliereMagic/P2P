@@ -33,7 +33,7 @@ Seeder::~Seeder(void)
 void Seeder::client_handler(int client_fd)
 {
 	uint8_t message_type;
-	std::string filename = "";
+	std::string filename;
 	uint32_t num_chunks;
 	uint32_t chunk_request_begin_idx;
 	uint32_t chunk_request_end_idx;
@@ -45,7 +45,9 @@ void Seeder::client_handler(int client_fd)
 			    chunk_request_begin_idx, chunk_request_end_idx,
 			    current_chunk_idx, current_chunk_size, true)) {
 			std::cerr
-				<< "Error. Unable to read message from client_handler.\n";
+				<< "Unable to read message from client_handler. "
+				   "Or peer disconnected."
+				<< std::endl;
 			close(client_fd);
 			return;
 		}
@@ -92,15 +94,16 @@ void Seeder::client_handler(int client_fd)
 					close(client_fd);
 					return;
 				}
-			}
-			// We have the file...
-			if (!ApplicationLayer::Peer::write_message(
-				    client_fd,
-				    ApplicationLayer::PeerMessageType::
-					    FILE_RESPONSE,
-				    "", std::get<1>(item->second))) {
-				close(client_fd);
-				return;
+			} else {
+				// We have the file...
+				if (!ApplicationLayer::Peer::write_message(
+					    client_fd,
+					    ApplicationLayer::PeerMessageType::
+						    FILE_RESPONSE,
+					    "", std::get<1>(item->second))) {
+					close(client_fd);
+					return;
+				}
 			}
 			break;
 		}
@@ -111,6 +114,7 @@ void Seeder::client_handler(int client_fd)
 		}
 		} // End switch.
 	}
+	close(client_fd);
 }
 
 void Seeder::start(void)

@@ -133,6 +133,31 @@ void Peer::deserialize_message_header(const PeerMessage &message,
 	out_current_chunk_size = ntohl(*((uint32_t *)&(message[272])));
 }
 
+template <typename T>
+bool Peer::send_or_recv_socket(int sock, T &container, size_t len,
+			       ssize_t (*sock_func)(int sock, void *buff,
+						    size_t len))
+{
+	// A lot of pain was solved by reading this...
+	// https://stackoverflow.com/questions/14399691/send-not-deliver-all-bytes
+	uint32_t bytes_left = len;
+	uint8_t *read_ptr = container.data();
+	while (bytes_left > 0) {
+		// Try to read/write it all in at once (unlikely)
+		ssize_t bytes_done = sock_func(sock, read_ptr, bytes_left);
+		if (bytes_done < 0) {
+			std::cout << "Unable to send or receive on socket.\n";
+			perror("Error");
+			return false;
+		}
+		// Decrement the amount of bytes we still have to read/write in, and
+		// move our pointer ahead the number of bytes we have read/written.
+		bytes_left -= bytes_done;
+		read_ptr += bytes_done;
+	}
+	return true;
+}
+
 // Returns the pieces of the message extracted from the header, as well as
 // writes the chunk to the chunks folder passed if this is a CHUNK_RESPONSE
 // message. Where the filename is the chunk index number.p2p
@@ -147,9 +172,8 @@ bool Peer::read_message(const int socket, uint8_t &out_message_type,
 			const std::string &temp_chunk_dir)
 {
 	PeerMessage m;
-	// Read in a Peer Message Header
-	if (read(socket, m.data(), m.size()) < (ssize_t)m.size()) {
-		std::cerr << "Error. Unable to read header from socket.\n";
+	// Read in the header
+	if (!send_or_recv_socket(socket, m, m.size(), read)) {
 		return false;
 	}
 	deserialize_message_header(m, out_message_type, out_file_name,
@@ -165,21 +189,9 @@ bool Peer::read_message(const int socket, uint8_t &out_message_type,
 		// A lot of pain was solved by reading this...
 		// https://stackoverflow.com/questions/14399691/send-not-deliver-all-bytes
 		// read in the chunk
-		uint32_t bytes_left = out_current_chunk_size;
-		uint8_t *read_ptr = chunk.data();
-		while (bytes_left > 0) {
-			// Try to read it all in at once (unlikely)
-			ssize_t bytes_read = read(socket, read_ptr, bytes_left);
-			if (bytes_read < 0) {
-				std::cerr
-					<< "Error. Unable to read a least 1 byte for the "
-					   "data portion of a CHUNK_RESPONSE.\n";
-				return false;
-			}
-			// Decrement the amount of bytes we still have to read in, and move
-			// our pointer ahead the number of bytes we have read.
-			bytes_left -= bytes_read;
-			read_ptr += bytes_read;
+		if (!send_or_recv_socket(socket, chunk, out_current_chunk_size,
+					 read)) {
+			return false;
 		}
 		// Build the chunk filename
 		std::stringstream filename;
@@ -232,8 +244,9 @@ bool Peer::write_message(const int socket, const uint8_t message_type,
 			return false;
 		}
 		// Send the header
-		if (write(socket, m.data(), m.size()) < (ssize_t)m.size()) {
-			std::cerr << "Error. Unable to send header to peer.\n";
+		if (!send_or_recv_socket(socket, m, m.size(),
+					 (ssize_t(*)(int sock, void *buff,
+						     size_t len))write)) {
 			return false;
 		}
 	} else {
@@ -257,31 +270,16 @@ bool Peer::write_message(const int socket, const uint8_t message_type,
 			return false;
 		}
 		// Send the header
-		if (write(socket, m.data(), m.size()) < (ssize_t)m.size()) {
-			std::cerr << "Error. Unable to send header to peer.\n";
+		if (!send_or_recv_socket(socket, m, m.size(),
+					 (ssize_t(*)(int sock, void *buff,
+						     size_t len))write)) {
 			return false;
 		}
-		// A lot of pain was solved by reading this...
-		// https://stackoverflow.com/questions/14399691/send-not-deliver-all-bytes
 		// Send the chunk to the peer
-		uint32_t bytes_left = actual_chunk_size;
-		uint8_t *write_ptr = chunk.data();
-		// Keep sending data until we have sent the entire chunk.
-		while (bytes_left > 0) {
-			// Try to write out the whole thing at once (unlikely to happen)
-			ssize_t bytes_written =
-				write(socket, write_ptr, bytes_left);
-			if (bytes_written < 0) {
-				std::cerr
-					<< "Error. Unable to read a least 1 byte for the "
-					   "data portion of a CHUNK_RESPONSE.\n";
-				return false;
-			}
-			// Decrement the amount of bytes we have left to send, and increment
-			// our write pointer the number of bytes we already have out the
-			// door.
-			bytes_left -= bytes_written;
-			write_ptr += bytes_written;
+		if (!send_or_recv_socket(socket, chunk, actual_chunk_size,
+					 (ssize_t(*)(int sock, void *buff,
+						     size_t len))write)) {
+			return false;
 		}
 	}
 	return true;

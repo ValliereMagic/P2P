@@ -1,6 +1,7 @@
 #include "../ApplicationLayer/ApplicationLayer.hpp"
 #include "Peers.hpp"
 #include "Seeder.hpp"
+#include "Leecher.hpp"
 
 extern "C" {
 #include <netinet/in.h>
@@ -124,6 +125,8 @@ int main(void)
 {
 	// Attach our cleanup handler to SIGINT
 	signal(SIGINT, cleanup_on_exit);
+	// ignore sigpipe (kills valgrind)
+	signal(SIGPIPE, SIG_IGN);
 	std::string address;
 	uint16_t port;
 	// Retrieve out listen address and port from the user
@@ -177,6 +180,8 @@ int main(void)
 			cleanup_on_exit(EXIT_FAILURE);
 		}
 		// Start the Leecher system
+		Peer::Leecher leecher(peers);
+		leecher.download_file(filename_to_download, save_path);
 	}
 	// If a filename was specified, download that file to the current directory.
 	// If not, be a seeder to the pool for the files specified. If no files
