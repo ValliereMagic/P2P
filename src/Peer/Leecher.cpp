@@ -87,6 +87,7 @@ void Leecher::download_chunk_set(const std::string &filename,
 	if (socket_fd <= 0) {
 		std::cerr
 			<< "Failed to Initialize socket descriptor. in peer connect\n";
+		return;
 	}
 	// Build our address
 	in_addr address = { .s_addr = addr };
@@ -106,6 +107,7 @@ void Leecher::download_chunk_set(const std::string &filename,
 		    filename, 0, begin_idx, end_idx)) {
 		std::cerr
 			<< "Error. Unable to send Chunk Request Message to peer.\n";
+		close(socket_fd);
 		return;
 	}
 	// Read in the chunks being sent back
@@ -123,6 +125,7 @@ void Leecher::download_chunk_set(const std::string &filename,
 			    false, save_path)) {
 			std::cerr << "Error. Unable to read in chunk: "
 				  << current_chunk_idx << "\n";
+			return;
 		}
 		std::cout << "Downloading chunk: " << current_chunk_idx << "\n";
 	}
