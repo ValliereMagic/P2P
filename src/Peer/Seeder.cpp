@@ -63,7 +63,7 @@ void Seeder::client_handler(int client_fd)
 			}
 			// Send them each of the chunks they requested.
 			for (size_t it = chunk_request_begin_idx;
-			     it <= chunk_request_begin_idx; ++it) {
+			     it <= chunk_request_end_idx; ++it) {
 				if (!ApplicationLayer::Peer::write_message(
 					    client_fd,
 					    ApplicationLayer::PeerMessageType::
@@ -73,6 +73,7 @@ void Seeder::client_handler(int client_fd)
 					close(client_fd);
 					return;
 				}
+				std::cout << "Sending chunk: " << it << "\n";
 			}
 			break;
 		}

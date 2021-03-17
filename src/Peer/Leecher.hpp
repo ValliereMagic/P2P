@@ -7,8 +7,16 @@ class Leecher {
 
 	// Connect to the specified peer, (addr, port) and ask them if they have the
 	// passed filename.
-	static bool does_peer_have_file(const std::string &filename,
-					uint32_t addr, uint16_t port);
+	static std::tuple<bool, uint32_t>
+	does_peer_have_file(const std::string &filename, const uint32_t addr,
+			    const uint16_t port);
+	// Download a chunk set to the passed save_path.
+	static void download_chunk_set(const std::string &filename,
+				       const uint32_t begin_idx,
+				       const uint32_t end_idx,
+				       const std::string &save_path,
+				       const uint32_t address,
+				       const uint16_t port);
 
     public:
 	Leecher(std::shared_ptr<Peers> &live_peers);
