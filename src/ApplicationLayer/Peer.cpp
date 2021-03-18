@@ -145,8 +145,11 @@ bool Peer::send_or_recv_socket(int sock, T &container, size_t len,
 	while (bytes_left > 0) {
 		// Try to read/write it all in at once (unlikely)
 		ssize_t bytes_done = sock_func(sock, read_ptr, bytes_left);
-		if (bytes_done <= 0) {
+		if (bytes_done < 0) {
 			std::cout << "Unable to send or receive on socket.\n";
+			return false;
+		} else if (bytes_done == 0) {
+			std::cout << "Socket Disconnected.\n";
 			return false;
 		}
 		// Decrement the amount of bytes we still have to read/write in, and
