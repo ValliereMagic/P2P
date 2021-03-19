@@ -3,6 +3,7 @@
 #include "src/ApplicationLayer/Peer.hpp"
 #include <algorithm>
 #include <iterator>
+#include <tuple>
 #include <vector>
 #include <thread>
 #include <iostream>
@@ -43,14 +44,14 @@ Leecher::does_peer_have_file(const std::string &filename, const uint32_t addr,
 		    sizeof(sockaddr_in)) == -1) {
 		std::cerr << "Error. Unable to connect to peer.\n";
 		close(socket_fd);
-		return { false, 0 };
+		return std::make_tuple(false, 0);
 	}
 	// Ask the peer if they have this file
 	if (!ApplicationLayer::Peer::write_message(
 		    socket_fd, ApplicationLayer::PeerMessageType::FILE_REQUEST,
 		    filename)) {
 		close(socket_fd);
-		return { false, 0 };
+		return std::make_tuple(false, 0);
 	}
 	// Wait for the response
 	uint8_t message_type;
@@ -61,17 +62,17 @@ Leecher::does_peer_have_file(const std::string &filename, const uint32_t addr,
 		    socket_fd, message_type, filename_garbo, num_chunks, garbo,
 		    garbo, garbo, garbo, true)) {
 		close(socket_fd);
-		return { false, 0 };
+		return std::make_tuple(false, 0);
 	}
 	// This will be true if the peer has the file
 	if (message_type == ApplicationLayer::PeerMessageType::FILE_RESPONSE &&
 	    num_chunks > 0) {
 		close(socket_fd);
-		return { true, num_chunks };
+		return std::make_tuple(true, num_chunks);
 	}
 	// Otherwise cleanup, and return false. They don't have it.
 	close(socket_fd);
-	return { false, 0 };
+	return std::make_tuple(false, 0);
 }
 
 // Download a chunk set to the passed save_path.
