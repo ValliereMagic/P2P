@@ -1,4 +1,4 @@
-# This project was created for a self-challenge as an assignment for a course I took.
+# This project was created as a self-challenge assignment for a course I took.
 
 The swarm server is started first. When peers start up, they connect to the
 swarm server, and give it their (ip address, port) pair that they are listening
