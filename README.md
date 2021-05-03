@@ -1,5 +1,21 @@
 # This project was created as a self-challenge assignment for a course I took.
 
+## Building
+```
+meson build
+cd ./build
+meson compile
+```
+
+## Running
+```
+<Within build dir>
+To start the Swarm server <By default binds to all interfaces on port 50001>:
+./DiscoveryServer
+To start a Peer<By default expects the Swarm server to be on 127.0.0.1:50001>:
+./Peer
+```
+
 The swarm server is started first. When peers start up, they connect to the
 swarm server, and give it their (ip address, port) pair that they are listening
 to client connections on.
