@@ -16,6 +16,8 @@ To start a Peer<By default expects the Swarm server to be on 127.0.0.1:50001>:
 ./Peer
 ```
 
+## Overview
+
 The swarm server is started first. When peers start up, they connect to the
 swarm server, and give it their (ip address, port) pair that they are listening
 to client connections on.
