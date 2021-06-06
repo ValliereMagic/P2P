@@ -17,6 +17,12 @@ class Leecher {
 				       const std::string &save_path,
 				       const uint32_t address,
 				       const uint16_t port);
+	// Merge the downloaded chunks into a single file
+
+	// :return: false on failure
+	bool merge_downloaded_chunks(const std::string &save_path,
+				     const std::string &filename,
+				     const size_t num_chunks);
 
     public:
 	Leecher(std::shared_ptr<Peers> &live_peers);

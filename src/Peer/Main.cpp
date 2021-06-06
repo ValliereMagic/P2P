@@ -2,7 +2,7 @@
 #include "Peers.hpp"
 #include "Seeder.hpp"
 #include "Leecher.hpp"
-
+#include <iterator>
 extern "C" {
 #include <netinet/in.h>
 #include <unistd.h>
@@ -83,24 +83,26 @@ get_files_to_share(void)
 	std::cout << "Please enter the files you wish to share: "
 		     "(Just hit enter for none.).\n";
 	while (true) {
-		std::cout << "Please enter the filename of "
-			     "a file to share (without path)\n";
-		std::string filename;
-		if (!std::getline(std::cin, filename)) {
-			std::cerr
-				<< "Error. Unable to read in line from stdin.\n";
-			cleanup_on_exit(EXIT_FAILURE);
-		}
-		// return back if the user doesn't enter a filename.
-		if (filename == "") {
-			break;
-		}
-		std::cout << "Now please enter the file's full path.\n";
+		std::cout << "Please enter the file's full path:\n";
 		std::string file_complete_path;
 		if (!std::getline(std::cin, file_complete_path)) {
 			std::cerr
 				<< "Error. Unable to read in line from stdin.\n";
 			cleanup_on_exit(EXIT_FAILURE);
+		}
+		// return back if the user doesn't enter a filename.
+		if (file_complete_path == "") {
+			break;
+		}
+		std::string filename = "";
+		// split the file's full path into path and filename
+		ssize_t last_slash_pos = file_complete_path.find_last_of('/');
+		if (last_slash_pos == file_complete_path.npos) {
+			filename = file_complete_path;
+		} else {
+			filename = file_complete_path.substr(
+				last_slash_pos + 1,
+				file_complete_path.length());
 		}
 		// Calculate the number of chunks that the file takes up:
 		struct stat file_info;
@@ -171,13 +173,16 @@ int main(void)
 	}
 	// The user specified a file to download:
 	if (!(filename_to_download.empty())) {
-		std::cout << "Please enter a directory to save the file in "
-			     "(WITH A TRAILING /): ";
+		std::cout << "Please enter a directory to save the file in: ";
 		std::string save_path;
 		if (!std::getline(std::cin, save_path)) {
 			std::cerr
 				<< "Error. Unable to read in line from stdin.\n";
 			cleanup_on_exit(EXIT_FAILURE);
+		}
+		// if the save_path doesn't have a trailing /, then add one.
+		if (*std::prev(save_path.end()) != '/') {
+			save_path.push_back('/');
 		}
 		// Start the Leecher system
 		Peer::Leecher leecher(peers);
