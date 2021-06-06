@@ -80,10 +80,8 @@ Chunk Response -> Respond to the client with the chunks that they requested.
         - contains 32Mb payload after header
 ```
 
-Currently, the chunks will be written in parallel to to specified download
-location with the filename `<chunk_num>.p2p` and merging is not built in.
+The chunks will be written in parallel to to specified download
+location with the filename(s) `<chunk_num>.p2p`.
 
-the included `merge.sh` script can be used to reassemble the file from its
-chunks.
-
-This script is located in src/
+Then they will be re-merged into a file under the same name as the peer it was
+downloaded from.
