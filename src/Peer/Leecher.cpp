@@ -3,6 +3,7 @@
 #include "src/ApplicationLayer/Peer.hpp"
 #include <algorithm>
 #include <iterator>
+#include <sstream>
 #include <tuple>
 #include <vector>
 #include <thread>
@@ -11,6 +12,7 @@
 
 extern "C" {
 #include <unistd.h>
+#include <fcntl.h>
 #include <arpa/inet.h>
 #include <netinet/in.h>
 }
@@ -227,6 +229,63 @@ bool Leecher::download_file(const std::string &filename,
 	for (auto &t : peer_threads) {
 		t.join();
 	}
+	// Merge the downloaded chunks into a single file.
+	return merge_downloaded_chunks(save_path, filename, num_chunks);
+}
+
+// Merge the downloaded chunks into a single file
+
+// :return: false on failure
+bool Leecher::merge_downloaded_chunks(const std::string &save_path,
+				      const std::string &filename,
+				      const size_t num_chunks)
+{
+	// Create file to write each chunk to
+	int merged_file_fd = open((save_path + filename).c_str(),
+				  O_CREAT | O_WRONLY | O_TRUNC, 0644);
+	// Make sure we were able to open our merged file for writing.
+	if (merged_file_fd < 0) {
+		std::cerr << "Error. Unable to open merged file for writing.\n";
+		return false;
+	}
+	// memory to store each chunk
+	std::unique_ptr<uint8_t[]> chunk(
+		new uint8_t[ApplicationLayer::CHUNK_SIZE]);
+	// filename to build each time we download a chunk
+	std::stringstream chunk_filename;
+	// Read in each chunk, and append it to the merged file.
+	for (size_t i = 0; i < num_chunks; ++i) {
+		// build chunk filename string from passed vars.
+		chunk_filename << save_path << i << ".p2p";
+		std::string full_chunk_filename = chunk_filename.str();
+		// Open up the current chunk for reading
+		int chunk_fd = open(full_chunk_filename.c_str(), O_RDONLY);
+		if (chunk_fd < 0) {
+			std::cerr << "Error. Unable to open chunk"
+				  << full_chunk_filename << " for reading.\n";
+			return false;
+		}
+		// Read the chunk into the buffer
+		ssize_t bytes_read = read(chunk_fd, chunk.get(),
+					  ApplicationLayer::CHUNK_SIZE);
+		if (bytes_read < 0) {
+			std::cerr
+				<< "Unable to read in any bytes from the chunk.\n";
+			return false;
+		}
+		// Were done with the chunk, we can close it's file now.
+		close(chunk_fd);
+		// Delete the chunk
+		unlink(full_chunk_filename.c_str());
+		// Write the chunk into the merged file.
+		if (write(merged_file_fd, chunk.get(), bytes_read) < 0) {
+			std::cerr << "Error writing chunk to merged file.\n";
+			return false;
+		}
+		// Clear the string stream for the next iteration.
+		chunk_filename.str(std::string());
+	}
+	close(merged_file_fd);
 	return true;
 }
 
