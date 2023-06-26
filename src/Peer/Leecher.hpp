@@ -1,4 +1,5 @@
 #include "Peers.hpp"
+#include <memory>
 
 namespace Peer
 {
